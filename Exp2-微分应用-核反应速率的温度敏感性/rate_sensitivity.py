@@ -1,42 +1,46 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 def q3a(T):
-    """
-    计算 3-alpha 反应速率中与温度相关的部分 q / (rho^2 Y^3)
-    输入: T - 温度 (K)
-    返回: 速率因子 (erg * cm^6 / (g^3 * s))
-    """
-    # TODO: 在此实现3-α反应速率计算
-    # 提示：
-    # 1. 将温度转换为以 10^8 K 为单位
-    # 2. 注意处理温度为零的特殊情况
-    # 3. 使用公式：q_{3α} = 5.09×10^11 ρ^2 Y^3 T_8^(-3) exp(-44.027/T_8)
-    pass
+    """计算3-α反应速率中与温度相关的部分 q/(ρ²Y³)"""
+    T8 = T / 1e8  # 转换为T8单位（以1e8 K为单位）
+    return 5.09e11 * (T8)**(-3) * np.exp(-44.027 / T8)
 
-def plot_rate(filename="rate_vs_temp.png"):
-    """绘制速率因子随温度变化的 log-log 图"""
-    # TODO: 在此实现绘图函数
-    # 提示：
-    # 1. 使用 np.logspace 生成温度数据点
-    # 2. 计算对应的速率值
-    # 3. 使用 plt.loglog 绘制双对数图
-    # 4. 添加适当的标签和标题
-    pass
+def calculate_nu(T0, h=1e-8):
+    """使用前向差分法计算温度敏感性指数ν"""
+    q0 = q3a(T0)
+    dT = h * T0  # 计算绝对温度步长
+    q_perturbed = q3a(T0 + dT)
+    dq_dT = (q_perturbed - q0) / dT  # 前向差分
+    nu = (T0 / q0) * dq_dT
+    return nu
+
+def plot_rate(filename="results/rate_vs_temp.png"):
+    """绘制速率因子随温度变化的log-log图"""
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    T_values = np.logspace(8, np.log10(5e9), 100)  # 1e8到5e9对数间隔
+    q_values = q3a(T_values)
+    
+    plt.figure(figsize=(10, 6))
+    plt.loglog(T_values, q_values, label='q/(ρ²Y³)')
+    plt.xlabel('Temperature (K)')
+    plt.ylabel('q/(ρ²Y³) [erg cm$^6$ g$^{-3}$ s$^{-1}$]')
+    plt.title('3-α Reaction Rate vs Temperature (log-log scale)')
+    plt.grid(True, which='both', linestyle='--', alpha=0.7)
+    plt.legend()
+    plt.savefig(filename)
+    plt.close()
 
 if __name__ == "__main__":
-    # 计算并打印 nu 值
-    print("   温度 T (K)    :   ν (敏感性指数)")
-    print("--------------------------------------")
-
+    os.makedirs('results', exist_ok=True)
     temperatures_K = [1.0e8, 2.5e8, 5.0e8, 1.0e9, 2.5e9, 5.0e9]
-    h = 1.0e-8  # 扰动因子
-
-    # TODO: 实现温度敏感性指数的计算
-    # 提示：
-    # 1. 对每个温度点计算 q3a
-    # 2. 使用前向差分计算导数
-    # 3. 计算敏感性指数 nu
-    # 4. 注意处理特殊情况（如 q = 0）
-
-    # TODO: 调用绘图函数展示结果
+    h = 1e-8
+    
+    print("温度 T (K)    :   ν 值")
+    print("----------------------------")
+    for T0 in temperatures_K:
+        nu = calculate_nu(T0, h)
+        print(f"{T0:12.1e} : {nu:.3f}")
+    
+    plot_rate()
