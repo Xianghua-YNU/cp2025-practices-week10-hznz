@@ -3,46 +3,37 @@ import sympy as sp
 import matplotlib.pyplot as plt
 
 def f(x):
-    """目标函数：f(x) = 1 + 0.5*tanh(2x)"""
     return 1 + 0.5 * np.tanh(2 * x)
 
-def calculate_central_difference(func, x, h=1e-5):
-    """
-    中心差分法计算导数（参数名func避免与全局函数f冲突）
-    :param func: 目标函数（必须为可调用函数）
-    :param x: 计算点的位置（标量或数组）
-    :param h: 步长（默认1e-5）
-    :return: 导数近似值
-    """
-    return (func(x + h) - func(x - h)) / (2 * h)
-
 def get_analytical_derivative():
-    """使用Sympy生成解析导数函数"""
-    x = sp.symbols('x')
-    f_sym = 1 + 0.5 * sp.tanh(2 * x)
-    df_sym = sp.diff(f_sym, x)
-    return sp.lambdify(x, df_sym, 'numpy')  # 返回可调用的NumPy函数
+    """返回解析导数函数"""
+    x_sym = sp.symbols('x')
+    f_expr = 1 + 0.5 * sp.tanh(2 * x_sym)
+    f_prime_expr = sp.diff(f_expr, x_sym)
+    return sp.lambdify(x_sym, f_prime_expr, 'numpy')
 
-def richardson_extrapolation(func, x, max_order=5, h0=0.1):
-    """
-    Richardson外推法（参数名与测试用例匹配）
-    :param func: 目标函数
-    :param x: 计算点的位置
-    :param max_order: 最大外推阶数（默认5）
-    :param h0: 初始步长（默认0.1）
-    :return: 最高阶导数近似值
-    """
-    d = np.zeros((max_order + 1, max_order + 1))
-    h = h0
-    for i in range(max_order + 1):
-        # 计算D_{i,0}
-        d[i, 0] = (func(x + h) - func(x - h)) / (2 * h)
-        # 递推计算高阶外推
-        for j in range(1, i + 1):
+df_analytical = get_analytical_derivative()
+
+def calculate_central_difference(x_points, func, h=0.1):
+    """计算中心差分导数（支持数组输入）"""
+    derivatives = []
+    for x in x_points:
+        deriv = (func(x + h) - func(x - h)) / (2 * h)
+        derivatives.append(deriv)
+    return np.array(derivatives)
+
+def richardson_derivative_all_orders(x, func, h, max_order=3):
+    """Richardson外推法（返回各阶结果列表）"""
+    D = np.zeros((max_order+1, max_order+1))
+    results = []
+    for i in range(max_order+1):
+        current_h = h / (2 ** i)
+        D[i, 0] = (func(x + current_h) - func(x - current_h)) / (2 * current_h)
+        for j in range(1, i+1):
             factor = 4 ** j
-            d[i, j] = d[i, j - 1] + (d[i, j - 1] - d[i - 1, j - 1]) / (factor - 1)
-        h /= 2  # 步长折半
-    return d[max_order, max_order]
+            D[i, j] = D[i, j-1] + (D[i, j-1] - D[i-1, j-1]) / (factor - 1)
+        results.append(D[i, i])
+    return results
 
 def analyze_errors():
     """分析步长对误差的影响"""
