@@ -1,4 +1,4 @@
-
+# numerical_differentiation.py
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
@@ -7,9 +7,9 @@ def f(x):
     """目标函数：f(x) = 1 + 0.5*tanh(2x)"""
     return 1 + 0.5 * np.tanh(2 * x)
 
-def central_difference(f, x, h=1e-5):
+def calculate_central_difference(f, x, h=1e-5):
     """
-    中心差分法计算导数
+    中心差分法计算导数（函数名与测试用例一致）
     :param f: 目标函数
     :param x: 计算点的位置（支持向量化输入）
     :param h: 步长（默认1e-5）
@@ -46,21 +46,25 @@ def richardson_extrapolation(f, x, n=5, h0=0.1):
         h /= 2  # 步长折半
     return d[n, n]
 
+# 添加测试所需的别名（与测试用例名称匹配）
+richardson_derivative_all_orders = richardson_extrapolation
+
 def analyze_errors():
     """分析步长对误差的影响并绘图"""
-    hs = np.logspace(-1, -6, num=6, base=10)  # [1e-1, 1e-2, ..., 1e-6]
-
+    # 生成步长序列：0.1, 0.01, ..., 1e-6
+    hs = np.logspace(-1, -6, num=6, base=10)
     x_test = 0.5  # 测试点
     
     df_analytical = get_analytical_derivative()
     exact = df_analytical(x_test)
+    
     # 计算误差
     errors_central = []
     errors_richardson = []
     
     for h in hs:
         # 中心差分误差
-        approx_central = central_difference(f, x_test, h)
+        approx_central = calculate_central_difference(f, x_test, h)
         errors_central.append(np.abs(approx_central - exact))
         
         # Richardson外推（n=3, h0=h）
@@ -86,7 +90,7 @@ def plot_derivative_comparison():
     
     # 计算各方法导数
     exact_vals = df_analytical(x_vals)
-    central_vals = central_difference(f, x_vals, h=1e-5)
+    central_vals = calculate_central_difference(f, x_vals, h=1e-5)
     richardson_vals = np.array([richardson_extrapolation(f, x, n=3, h0=0.1) for x in x_vals])
     
     # 绘图
@@ -105,4 +109,3 @@ def plot_derivative_comparison():
 if __name__ == "__main__":
     analyze_errors()
     plot_derivative_comparison()
-
