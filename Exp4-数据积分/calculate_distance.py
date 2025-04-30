@@ -5,35 +5,43 @@ import os
 
 def main():
     try:
-        # 1. 获取数据文件路径（TODO：使用相对路径）
-        data_file = None
+        # 1. 获取数据文件路径（使用绝对路径）
+        data_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        data_file = os.path.join(data_dir, 'Velocities.txt')
         
-        # 2. 读取数据（TODO：使用numpy.loadtxt）
-        data = None
-        t = None  # 时间列
-        v = None  # 速度列
+        # 2. 读取数据
+        data = np.loadtxt(data_file)
+        t = data[:, 0]  # 时间列
+        v = data[:, 1]  # 速度列
 
-        # 3. 计算总距离（TODO：使用numpy.trapz）
-        total_distance = None
+        # 3. 计算总距离
+        total_distance = np.trapz(v, t)
         print(f"总运行距离: {total_distance:.2f} 米")
 
-        # 4. 计算累积距离（TODO：使用cumulative_trapezoid）
-        distance = None
+        # 4. 计算累积距离
+        distance = cumulative_trapezoid(v, t, initial=0)
 
         # 5. 绘制图表
         plt.figure(figsize=(10, 6))
+        
+        # Plot velocity curve
         plt.plot(t, v, 'b-', label='Velocity (m/s)')
+        
+        # Plot distance curve 
         plt.plot(t, distance, 'r--', label='Distance (m)')
+        
+        # Chart decoration
         plt.title('Velocity and Distance vs Time')
         plt.xlabel('Time (s)')
         plt.ylabel('Velocity (m/s) / Distance (m)')
         plt.legend()
         plt.grid(True)
+        
+        # 显示图表
         plt.show()
-
     except FileNotFoundError:
-        print("错误：找不到数据文件")
-        print("请确保数据文件存在于正确路径")
+        print(f"错误：找不到数据文件 {data_file}")
+        print("请确保数据文件存在于项目目录中")
 
 if __name__ == '__main__':
     main()
