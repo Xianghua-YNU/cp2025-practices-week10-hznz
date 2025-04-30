@@ -3,7 +3,7 @@ import numpy as np
 # 待积分函数（学生需自行定义）
 def f(x):
     # TODO: 实现被积函数 f(x) = x^4 - 2x + 1
-    pass
+    return x**4 - 2*x + 1
 
 # 梯形法则积分函数（供参考比较用）
 def trapezoidal(f, a, b, N):
@@ -16,7 +16,11 @@ def trapezoidal(f, a, b, N):
     :return: 积分近似值
     """
     # TODO: 实现梯形法则积分
-    pass
+    h = (b - a) / N
+    x = np.linspace(a, b, N+1)
+    y = f(x)
+    integral = h * (0.5*y[0] + 0.5*y[-1] + np.sum(y[1:-1]))
+    return integral
 
 # Simpson法则积分函数（学生需完成）
 def simpson(f, a, b, N):
@@ -30,20 +34,32 @@ def simpson(f, a, b, N):
     """
     # TODO: 实现Simpson法则积分
     # 注意：需先检查N是否为偶数
-    pass
+    if N % 2 != 0:
+        raise ValueError("N must be an even number for Simpson's rule")
 
+    h = (b - a) / N
+    x = np.linspace(a, b, N+1)
+    y = f(x)
+    
+    # 奇数项和偶数项的和
+    sum_odd = np.sum(y[1:-1:2])  # i=1,3,5,...,N-1
+    sum_even = np.sum(y[2:-1:2])  # i=2,4,6,...,N-2
+     
+    integral = (h/3) * (y[0] + 4*sum_odd + 2*sum_even + y[-1])
+    return integral
+    
 def main():
     a, b = 0, 2  # 积分区间
     exact_integral = 4.4  # 精确解
 
     for N in [100, 1000]:  # 不同子区间数
         # TODO: 调用积分函数并计算误差
-        trapezoidal_result = None
-        simpson_result = None
+        trapezoidal_result = trapezoidal(f, a, b, N)
+        simpson_result = simpson(f, a, b, N)
         
         # TODO: 计算相对误差
-        trapezoidal_error = None  
-        simpson_error = None
+        trapezoidal_error = abs(trapezoidal_result - exact_integral) / exact_integral
+        simpson_error = abs(simpson_result - exact_integral) / exact_integral
 
         # 输出结果（模板已给出）
         print(f"N = {N}")
