@@ -1,96 +1,130 @@
 import numpy as np
-import sympy as sp
 import matplotlib.pyplot as plt
+from sympy import tanh, symbols, diff, lambdify
 
 def f(x):
+    """原始函数 f(x) = 1 + 0.5*tanh(2x)"""
     return 1 + 0.5 * np.tanh(2 * x)
 
 def get_analytical_derivative():
-    """返回解析导数函数"""
-    x_sym = sp.symbols('x')
-    f_expr = 1 + 0.5 * sp.tanh(2 * x_sym)
-    f_prime_expr = sp.diff(f_expr, x_sym)
-    return sp.lambdify(x_sym, f_prime_expr, 'numpy')
+    """获取解析导数函数"""
+    x = symbols('x')
+    expr = diff(1 + 0.5 * tanh(2 * x), x)
+    return lambdify(x, expr)
 
-df_analytical = get_analytical_derivative()
+def calculate_central_difference(x, f_func):
+    """使用中心差分法计算数值导数"""
+    dy = []
+    for i in range(1, len(x)-1):
+        h = x[i+1] - x[i]  # 动态计算步长
+        dy.append((f_func(x[i+1]) - f_func(x[i-1])) / (2 * h))
+    return np.array(dy)
 
-def calculate_central_difference(x_points, func, h=0.1):
-    """计算中心差分导数（支持数组输入）"""
-    derivatives = []
-    for x in x_points:
-        deriv = (func(x + h) - func(x - h)) / (2 * h)
-        derivatives.append(deriv)
-    return np.array(derivatives)
-
-def richardson_derivative_all_orders(x, func, h, max_order=3):
-    """Richardson外推法（返回各阶结果列表）"""
-    D = np.zeros((max_order+1, max_order+1))
-    results = []
-    for i in range(max_order+1):
-        current_h = h / (2 ** i)
-        D[i, 0] = (func(x + current_h) - func(x - current_h)) / (2 * current_h)
-        for j in range(1, i+1):
-            factor = 4 ** j
-            D[i, j] = D[i, j-1] + (D[i, j-1] - D[i-1, j-1]) / (factor - 1)
-        results.append(D[i, i])
-    return results
-
-def analyze_errors():
-    """分析步长对误差的影响"""
-    hs = np.logspace(-1, -6, num=6, base=10)  # 生成 [0.1, 0.01, ..., 1e-6]
-    x_test = 0.5  # 测试点
+def richardson_derivative_all_orders(x, f_func, h, max_order=3):
+    """Richardson外推法计算不同阶数的导数值"""
+    R = np.zeros((max_order + 1, max_order + 1))
     
-    df_analytical = get_analytical_derivative()
-    exact = df_analytical(x_test)  # 解析解
+    # 计算第一列（不同步长的中心差分）
+    for i in range(max_order + 1):
+        hi = h / (2**i)
+        R[i, 0] = (f_func(x + hi) - f_func(x - hi)) / (2 * hi)
     
-    # 计算误差
-    errors_central = []
-    errors_richardson = []
+    # Richardson外推填充表
+    for j in range(1, max_order + 1):
+        for i in range(max_order - j + 1):
+            R[i, j] = (4**j * R[i+1, j-1] - R[i, j-1]) / (4**j - 1)
     
-    for h in hs:
-        # 中心差分误差（明确传递函数对象f）
-        approx_central = calculate_central_difference(f, x_test, h)
-        errors_central.append(np.abs(approx_central - exact))
+    return [R[0, j] for j in range(1, max_order + 1)]
+
+def create_comparison_plot(x, x_central, dy_central, dy_richardson, df_analytical):
+    """生成包含四幅子图的对比分析图"""
+    plt.style.use('seaborn')  # 设置绘图风格
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 14))
+    
+    # 解析解计算
+    analytical = df_analytical(x)
+    analytical_central = df_analytical(x_central)
+
+    ax1.plot(x, analytical, 'b-', lw=2, label='解析解')
+    ax1.plot(x_central, dy_central, 'ro', markersize=5, label='中心差分法')
+    ax1.plot(x, dy_richardson[:, 1], 'g^', markersize=5, label='Richardson外推（二阶）')
+    ax1.set_title('导数对比（区间 [-2, 2]）', fontsize=12)
+    ax1.set_xlabel('x', fontsize=10)
+    ax1.set_ylabel("f'(x)", fontsize=10)
+    ax1.legend()
+    ax1.grid(True, linestyle='--', alpha=0.7)
+
+    error_central = np.abs(dy_central - analytical_central)
+    error_richardson = np.abs(dy_richardson[:, 1] - analytical)
+    
+    ax2.semilogy(x_central, error_central, 'ro', markersize=5, label='中心差分法误差')
+    ax2.semilogy(x, error_richardson, 'g^', markersize=5, label='Richardson外推误差')
+    ax2.set_title('误差分析（对数坐标）', fontsize=12)
+    ax2.set_xlabel('x', fontsize=10)
+    ax2.set_ylabel('绝对误差', fontsize=10)
+    ax2.legend()
+    ax2.grid(True, linestyle='--', alpha=0.7)
+
+    for i, order in enumerate(['一阶', '二阶', '三阶'], 1):
+        error = np.abs(dy_richardson[:, i-1] - analytical)
+        ax3.semilogy(x, error, marker='^', markersize=5, label=f'Richardson外推（{order}）')
+    ax3.set_title('不同阶数的Richardson外推误差', fontsize=12)
+    ax3.set_xlabel('x', fontsize=10)
+    ax3.set_ylabel('绝对误差', fontsize=10)
+    ax3.legend()
+    ax3.grid(True, linestyle='--', alpha=0.7)
+    
+    # 子图4：步长敏感性分析（x=0）
+    h_values = np.logspace(-6, -1, 20)
+    x_test = 0.0
+    central_errors = []
+    richardson_errors = []
+    expected = df_analytical(x_test)
+    
+    for h in h_values:
+        # 中心差分误差
+        central_result = (f(x_test + h) - f(x_test - h)) / (2 * h)
+        central_errors.append(abs(central_result - expected))
         
-        # Richardson外推（使用max_order参数）
-        approx_rich = richardson_extrapolation(f, x_test, max_order=3, h0=h)
-        errors_richardson.append(np.abs(approx_rich - exact))
+        # Richardson外推误差（二阶）
+        rich_result = richardson_derivative_all_orders(x_test, f, h, max_order=3)[1]
+        richardson_errors.append(abs(rich_result - expected))
     
-    # 绘制log-log图
-    plt.figure(figsize=(10, 6))
-    plt.loglog(hs, errors_central, 'o-', label='Central Difference')
-    plt.loglog(hs, errors_richardson, 's-', label='Richardson (max_order=3)')
-    plt.xlabel('Step size h (log scale)')
-    plt.ylabel('Absolute error (log scale)')
-    plt.title('Error vs. Step Size')
-    plt.legend()
-    plt.grid(True, which='both', linestyle='--')
-    plt.savefig('error_analysis.png')
+    ax4.loglog(h_values, central_errors, 'ro-', label='中心差分法')
+    ax4.loglog(h_values, richardson_errors, 'g^-', label='Richardson外推（二阶）')
+    ax4.set_title('步长敏感性分析（x=0）', fontsize=12)
+    ax4.set_xlabel('步长 h', fontsize=10)
+    ax4.set_ylabel('绝对误差', fontsize=10)
+    ax4.legend()
+    ax4.grid(True, linestyle='--', alpha=0.7)
+    
+    plt.tight_layout()
+    plt.savefig('numerical_derivative_analysis.png', dpi=300, bbox_inches='tight')
     plt.show()
 
-def plot_derivative_comparison():
-    """绘制三种方法在区间[-2, 2]上的导数对比图"""
-    x_vals = np.linspace(-2, 2, 400)
-    df_analytical = get_analytical_derivative()
+def main():
+    """主函数，运行数值微分实验"""
+    # 参数设置
+    h_initial = 0.1     # 初始步长
+    max_order = 3       # Richardson最大外推阶数
+    N_points = 200      # 采样点数
     
-    # 计算各方法导数
-    exact_vals = df_analytical(x_vals)
-    central_vals = calculate_central_difference(f, x_vals, h=1e-5)
-    richardson_vals = np.array([richardson_extrapolation(f, x, max_order=3, h0=0.1) for x in x_vals])
+    # 生成均匀分布的x值（包含边界点）
+    x = np.linspace(-2, 2, N_points)
+    df_analytical = get_analytical_derivative()  # 解析导数函数
     
-    # 绘图
-    plt.figure(figsize=(12, 6))
-    plt.plot(x_vals, exact_vals, 'k-', lw=2, label='Analytical')
-    plt.plot(x_vals, central_vals, 'r--', label='Central Difference (h=1e-5)')
-    plt.plot(x_vals, richardson_vals, 'b:', label='Richardson (max_order=3, h0=0.1)')
-    plt.xlabel('x')
-    plt.ylabel("f'(x)")
-    plt.title('Derivative Comparison')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('derivative_comparison.png')
-    plt.show()
+    # 计算中心差分导数（注意：中心差分结果比输入x少两个点）
+    dy_central = calculate_central_difference(x, f)
+    x_central = x[1:-1]  # 去除首尾无法计算的点
+    
+    # 计算Richardson外推导数（每个x点独立计算）
+    dy_richardson = np.array([
+        richardson_derivative_all_orders(xi, f, h_initial, max_order=max_order)
+        for xi in x
+    ])
+    
+    # 生成对比分析图
+    create_comparison_plot(x, x_central, dy_central, dy_richardson, df_analytical)
 
-if __name__ == "__main__":
-    analyze_errors()
-    plot_derivative_comparison()
+if __name__ == '__main__':
+    main()
