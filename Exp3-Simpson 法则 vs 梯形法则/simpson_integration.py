@@ -67,5 +67,6 @@ def main():
         print(f"Simpson法则结果: {simpson_result:.8f}, 相对误差: {simpson_error:.2e}")
         print("-" * 40)
 
+
 if __name__ == '__main__':
     main()
