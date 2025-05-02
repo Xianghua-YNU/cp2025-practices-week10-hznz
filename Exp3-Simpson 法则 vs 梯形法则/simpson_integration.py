@@ -35,7 +35,7 @@ def simpson(f, a, b, N):
     # TODO: 实现Simpson法则积分
     # 注意：需先检查N是否为偶数
     if N % 2 != 0:
-        raise ValueError("N must be an even number for Simpson's rule")
+        raise ValueError("Simpson 法则要求 N 必须为偶数")
 
     h = (b - a) / N
     x = np.linspace(a, b, N+1)
